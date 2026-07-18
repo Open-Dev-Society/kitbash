@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "kitbash": {
+      "command": "node",
+      "args": ["C:/Users/11ara/github/kitbash/build/index.js"],
+      "timeout": 30000
+    }
+  }
+}

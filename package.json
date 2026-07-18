@@ -1,0 +1,28 @@
+{
+  "name": "kitbash-mcp",
+  "version": "0.1.0",
+  "description": "Describe what you want to build. Kitbash tells you which parts already exist, which to adapt, and which to just write.",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "kitbash-mcp": "build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "tsc && node build/index.js",
+    "snapshot": "node build/scripts/snapshot.js",
+    "check:examples": "node build/scripts/check-examples.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "5.9.3"
+  }
+}
