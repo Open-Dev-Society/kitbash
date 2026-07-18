@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kitbash — find the parts before you build them</title>
+<meta name="description" content="Describe what you want to build. Kitbash breaks it into parts, tells you which to borrow, which to adapt, and which to just write — then verifies every repo against the GitHub API.">
+<meta name="color-scheme" content="light dark">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Kitbash — find the parts before you build them">
+<meta property="og:description" content="An MCP server that tells you which parts of your idea already exist, which to adapt, and which to just write. Every repository verified against the GitHub API.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Kitbash — find the parts before you build them">
+<meta name="twitter:description" content="An MCP server that tells you which parts of your idea already exist, which to adapt, and which to just write.">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%94%A9</text></svg>">
+
+<style>
+  /* ---- reset ---- */
+  *, *::before, *::after { box-sizing: border-box; }
+  body, h1, h2, h3, p, figure, table, caption { margin: 0; }
+  img, svg { max-width: 100%; display: block; }
+  table { border-collapse: collapse; }
+
+  :root {
+    --ground: #E9E8E3;
+    --surface: #F4F3EF;
+    --sunk: #DFDDD6;
+    --ink: #1A1714;
+    --ink-2: #57534B;
+    --ink-3: #868177;
+    --rule: #CAC6BD;
+    --accent: #C4441C;
+    --accent-soft: #F0DCD3;
+    --borrow: #1B6553;
+    --kitbash: #96601A;
+    --write: #2D57A0;
+    --shadow: 0 1px 0 rgba(26,23,20,.06);
+
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    --measure: 68ch;
+    --pad: clamp(1.25rem, 5vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #171B1A;
+      --surface: #1F2523;
+      --sunk: #121615;
+      --ink: #E9E7E1;
+      --ink-2: #A0A49D;
+      --ink-3: #757A74;
+      --rule: #333A37;
+      --accent: #E9683C;
+      --accent-soft: #3A241B;
+      --borrow: #57B79D;
+      --kitbash: #D9A441;
+      --write: #82A8E8;
+      --shadow: 0 1px 0 rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #171B1A;
+    --surface: #1F2523;
+    --sunk: #121615;
+    --ink: #E9E7E1;
+    --ink-2: #A0A49D;
+    --ink-3: #757A74;
+    --rule: #333A37;
+    --accent: #E9683C;
+    --accent-soft: #3A241B;
+    --borrow: #57B79D;
+    --kitbash: #D9A441;
+    --write: #82A8E8;
+    --shadow: 0 1px 0 rgba(0,0,0,.3);
+  }
+  :root[data-theme="light"] {
+    --ground: #E9E8E3;
+    --surface: #F4F3EF;
+    --sunk: #DFDDD6;
+    --ink: #1A1714;
+    --ink-2: #57534B;
+    --ink-3: #868177;
+    --rule: #CAC6BD;
+    --accent: #C4441C;
+    --accent-soft: #F0DCD3;
+    --borrow: #1B6553;
+    --kitbash: #96601A;
+    --write: #2D57A0;
+    --shadow: 0 1px 0 rgba(26,23,20,.06);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 0 var(--pad);
+  }
+
+  /* ---- shared type ---- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .69rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  h1, h2, h3 { text-wrap: balance; }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(2rem, 6vw, 3.4rem);
+    line-height: 1.05;
+    letter-spacing: -.035em;
+    font-weight: 700;
+  }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: clamp(1.35rem, 3vw, 1.75rem);
+    letter-spacing: -.02em;
+    font-weight: 700;
+  }
+
+  h3 {
+    font-family: var(--mono);
+    font-size: 1rem;
+    letter-spacing: -.01em;
+    font-weight: 700;
+  }
+
+  p { max-width: var(--measure); }
+  .lede { font-size: 1.075rem; color: var(--ink-2); }
+  strong { font-weight: 650; color: var(--ink); }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  section { padding-block: clamp(3rem, 8vw, 5.5rem); }
+  .stack { display: flex; flex-direction: column; gap: 1.1rem; }
+  .stack-lg { display: flex; flex-direction: column; gap: 2.5rem; }
+
+  /* ---- masthead ---- */
+  .masthead {
+    border-bottom: 1px solid var(--rule);
+    padding-block: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem 1.5rem;
+    align-items: baseline;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .mark { color: var(--ink); font-weight: 700; letter-spacing: .1em; }
+
+  /* ---- hero ---- */
+  .hero { padding-top: clamp(2.5rem, 7vw, 4.5rem); }
+  .hero h1 { margin-bottom: .1em; }
+  .hero .accent { color: var(--accent); }
+
+  /* ---- proof card ---- */
+  .proof {
+    margin-top: 2.75rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    box-shadow: var(--shadow);
+  }
+  .proof-head {
+    padding: .8rem 1.15rem;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .proof-body { padding: 1.15rem; display: flex; flex-direction: column; gap: .8rem; }
+
+  .rank {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr) auto;
+    align-items: baseline;
+    gap: .5rem .9rem;
+    font-family: var(--mono);
+    font-size: .93rem;
+  }
+  .rank + .rank { padding-top: .8rem; border-top: 1px dashed var(--rule); }
+  .rank-pos {
+    font-size: .68rem;
+    letter-spacing: .1em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+  }
+  .rank.win .rank-pos { color: var(--accent); }
+  .rank-repo { min-width: 0; overflow-wrap: anywhere; }
+  .rank.win .rank-repo { font-weight: 700; }
+  .rank-stars {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+    white-space: nowrap;
+    font-size: .86rem;
+  }
+  .rank-note {
+    grid-column: 2 / -1;
+    font-family: var(--sans);
+    font-size: .88rem;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .proof-foot {
+    padding: .85rem 1.15rem;
+    border-top: 1px solid var(--rule);
+    background: var(--sunk);
+    font-size: .88rem;
+    color: var(--ink-2);
+    max-width: none;
+  }
+
+  /* ---- verdict legend ---- */
+  .verdicts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .verdict { background: var(--surface); padding: 1.35rem 1.25rem; display: flex; flex-direction: column; gap: .55rem; }
+  .verdict-tag {
+    font-family: var(--mono);
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+  .v-borrow .verdict-tag { color: var(--borrow); }
+  .v-kitbash .verdict-tag { color: var(--kitbash); }
+  .v-write .verdict-tag { color: var(--write); }
+  .verdict p { font-size: .92rem; color: var(--ink-2); }
+
+  /* ---- parts manifest ---- */
+  .manifest-scroll { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+  table { width: 100%; min-width: 40rem; font-family: var(--mono); font-size: .87rem; }
+  caption {
+    text-align: left;
+    padding: .85rem 1.1rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  th {
+    text-align: left;
+    font-weight: 600;
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding: .6rem 1.1rem;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  td { padding: .75rem 1.1rem; border-bottom: 1px solid var(--rule); vertical-align: baseline; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .num { color: var(--ink-3); font-variant-numeric: tabular-nums; width: 1%; }
+  .stars { font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+  .lic { color: var(--ink-3); white-space: nowrap; font-size: .8rem; }
+  .yours { color: var(--ink-3); font-style: italic; font-family: var(--sans); }
+
+  .pill {
+    display: inline-block;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: .2rem .5rem;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .p-borrow { color: var(--borrow); }
+  .p-kitbash { color: var(--kitbash); }
+  .p-write { color: var(--write); }
+
+  /* ---- callout ---- */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+  .callout p { max-width: 60ch; }
+
+  /* ---- two-step ---- */
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.25rem; }
+  .step {
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+  }
+  .step-n {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .step code { font-size: .95rem; }
+  .step p { font-size: .92rem; color: var(--ink-2); }
+
+  code {
+    font-family: var(--mono);
+    font-size: .93em;
+    background: var(--sunk);
+    padding: .1em .35em;
+    border-radius: 2px;
+  }
+
+  /* ---- install ---- */
+  .cmd {
+    background: var(--sunk);
+    border: 1px solid var(--rule);
+    padding: 1rem 1.15rem;
+    font-family: var(--mono);
+    font-size: .87rem;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--ink);
+  }
+  .cmd .prompt { color: var(--ink-3); user-select: none; }
+
+  .stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.75rem 2.75rem;
+    padding-top: .5rem;
+  }
+  .stat { display: flex; flex-direction: column; gap: .15rem; }
+  .stat-n {
+    font-family: var(--mono);
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-l {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-block: 2rem 3rem;
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.5rem;
+    justify-content: space-between;
+  }
+
+  hr.rule { border: 0; border-top: 1px solid var(--rule); margin: 0; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .proof, .verdict, .step { transition: border-color .15s ease; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="mark">KITBASH</span>
+    <span>Model Context Protocol server · assembly instructions</span>
+  </header>
+
+  <section class="hero stack">
+    <p class="eyebrow">Sheet 01 — the premise</p>
+    <h1>Most of what you're<br>about to build<br><span class="accent">already exists.</span></h1>
+    <p class="lede">Describe what you want to make. Kitbash breaks it into parts, tells you which to <strong>borrow</strong>, which to <strong>adapt</strong>, and which to just <strong>write</strong> — then checks every repository against the GitHub API before you ever see it.</p>
+
+    <div class="proof">
+      <div class="proof-head">Real output · "a CLI that transcribes podcasts and makes them searchable"</div>
+      <div class="proof-body">
+        <div class="rank win">
+          <span class="rank-pos">Ranked 1st</span>
+          <span class="rank-repo">gpodder/podcastparser</span>
+          <span class="rank-stars">144 ★</span>
+          <span class="rank-note">Written for exactly this job by the gPodder client. Streams instead of materializing the XML tree, and already normalizes the <code>itunes:duration</code> mess into seconds.</span>
+        </div>
+        <div class="rank">
+          <span class="rank-pos">Ranked 2nd</span>
+          <span class="rank-repo">kurtmckee/feedparser</span>
+          <span class="rank-stars">2,400 ★</span>
+          <span class="rank-note">The more general, more popular fallback — at the cost of a much wider surface than a podcast CLI needs.</span>
+        </div>
+      </div>
+      <p class="proof-foot">A repository with <strong>17× fewer stars</strong> took the lead slot, because it fit better. That inversion is the entire product.</p>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section class="stack-lg">
+    <div class="stack">
+      <p class="eyebrow">Sheet 02 — why now</p>
+      <h2>Your agent will happily rewrite a PDF parser.<br>It shouldn't.</h2>
+      <p class="lede">Search has always ranked by popularity rather than fit, so the right small library stays buried. That's the old problem. The new one is sharper: when a model will write anything in twenty minutes, rebuilding <em>feels</em> free — so nobody looks first.</p>
+      <p>That instinct is fine for glue and CRUD. It is quietly dangerous for problems whose correctness was won over years of edge cases that appear in no specification — PDF parsing, container muxing, timezone math, OAuth, Unicode normalization, rate limiting under contention. A rewrite of those looks right and is subtly wrong, and you find out in production.</p>
+    </div>
+
+    <div class="callout">
+      <h3>The thing being sold is not speed</h3>
+      <p>Four components you never build beats four components you build quickly. Kitbash deletes scope rather than accelerating it — which is a different axis from every other tool pointed at this problem.</p>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section class="stack-lg">
+    <div class="stack">
+      <p class="eyebrow">Sheet 03 — the three calls</p>
+      <h2>Every part gets a verdict</h2>
+      <p class="lede">This is the judgment a senior developer makes in ten seconds and no tool has externalized. A tool that recommends a repository for <em>everything</em> is a tool nobody believes — so saying "write it yourself" is a required outcome, not a failure state.</p>
+    </div>
+
+    <div class="verdicts">
+      <div class="verdict v-borrow">
+        <span class="verdict-tag">Borrow</span>
+        <h3>Take the dependency</h3>
+        <p>A maintained library exists and the correctness here was hard-won. Rewriting it is the mistake.</p>
+      </div>
+      <div class="verdict v-kitbash">
+        <span class="verdict-tag">Kitbash</span>
+        <h3>Read it, adapt it</h3>
+        <p>A good reference exists but isn't a clean fit. Take the approach, leave the dependency.</p>
+      </div>
+      <div class="verdict v-write">
+        <span class="verdict-tag">Write</span>
+        <h3>No repository needed</h3>
+        <p>Generic enough that your agent should just write it. A component you never take on is one you never maintain.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section class="stack-lg">
+    <div class="stack">
+      <p class="eyebrow">Sheet 04 — a finished assembly</p>
+      <h2>The parts manifest</h2>
+      <p class="lede">Verbatim output for <em>"a CLI that ingests podcast RSS, transcribes episodes, and makes them searchable."</em> Every repository below returned <code>200</code> from the GitHub API at the moment it was printed.</p>
+    </div>
+
+    <div class="manifest-scroll">
+      <table>
+        <caption>4 components — 1 to write, 3 already solved</caption>
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Component</th>
+            <th scope="col">Call</th>
+            <th scope="col">Part</th>
+            <th scope="col">Stars</th>
+            <th scope="col">License</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">01</td>
+            <td>Podcast feed parsing</td>
+            <td><span class="pill p-borrow">Borrow</span></td>
+            <td>gpodder/podcastparser</td>
+            <td class="stars">144</td>
+            <td class="lic">ISC</td>
+          </tr>
+          <tr>
+            <td class="num">02</td>
+            <td>Speech-to-text</td>
+            <td><span class="pill p-borrow">Borrow</span></td>
+            <td>SYSTRAN/faster-whisper</td>
+            <td class="stars">24,000</td>
+            <td class="lic">MIT</td>
+          </tr>
+          <tr>
+            <td class="num">03</td>
+            <td>Transcript search index</td>
+            <td><span class="pill p-kitbash">Kitbash</span></td>
+            <td>simonw/sqlite-utils</td>
+            <td class="stars">2,100</td>
+            <td class="lic">Apache-2.0</td>
+          </tr>
+          <tr>
+            <td class="num">04</td>
+            <td>Episode pipeline and CLI</td>
+            <td><span class="pill p-write">Write</span></td>
+            <td class="yours">yours — roughly a hundred lines</td>
+            <td class="stars">—</td>
+            <td class="lic">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <h3>On part 04, in its own words</h3>
+      <p>"The interesting state here is domain state, not queue state: transcription is minutes per episode, so the only checkpoint that matters is a row per episode with a status column — and any task-queue dependency would still leave you writing that row yourself."</p>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section class="stack-lg">
+    <div class="stack">
+      <p class="eyebrow">Sheet 05 — how it's built</p>
+      <h2>There is no model inside the server</h2>
+      <p class="lede">Recall is the product — knowing that a 144-star parser exists at all. So the recall happens in the largest model available, the one already running your session, rather than a smaller one we could afford to host. The server's job is to stop it lying.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <span class="step-n">Tool 01</span>
+        <h3><code>kitbash</code></h3>
+        <p>Hands the agent a decomposition rubric and an output contract. Returns nothing that could pass as a finished answer — because if it could, the verification step would get skipped.</p>
+      </div>
+      <div class="step">
+        <span class="step-n">Tool 02</span>
+        <h3><code>kitbash_verify</code></h3>
+        <p>Fact-checks every asserted repository against the GitHub API, scores health from real commit activity, drops anything that 404s, and renders the report. The agent chains it itself.</p>
+      </div>
+    </div>
+
+    <div class="stack">
+      <p>Ranking puts the agent's own ordering first, with repository health able only to <em>demote</em>. Sorting by stars would have silently re-buried the exact repository the rubric just dug up — which is how a tool ends up contradicting its own premise.</p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><span class="stat-n">~950ms</span><span class="stat-l">to verify 10 repos</span></div>
+      <div class="stat"><span class="stat-n">4</span><span class="stat-l">domains tested cold</span></div>
+      <div class="stat"><span class="stat-n">2</span><span class="stat-l">tools, one invocation</span></div>
+      <div class="stat"><span class="stat-n">0</span><span class="stat-l">API keys required</span></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section class="stack-lg">
+    <div class="stack">
+      <p class="eyebrow">Sheet 06 — assembly</p>
+      <h2>Two lines to install</h2>
+      <p class="lede">Runs inside Claude Code, Claude Desktop, Cursor, or any MCP-compatible agent. It reads your existing <code>gh</code> credentials, so there's no key to configure and nothing to sign up for.</p>
+    </div>
+
+    <div class="cmd"><span class="prompt">$ </span>npm install &amp;&amp; npm run build
+<span class="prompt">$ </span>claude mcp add kitbash -- node ./build/index.js</div>
+
+    <p>Then describe something you were about to build, and see how much of it you don't have to.</p>
+  </section>
+
+  <footer>
+    <span>Kitbash — MCP server</span>
+    <span>Figures are measured, not estimated</span>
+  </footer>
+
+</div>
+
+</body>
+</html>
