@@ -318,6 +318,28 @@ export function renderReport(
       out.push(`The part that is actually yours: **${mine.join('**, **')}**.`);
       out.push('');
     }
+
+    /*
+     * The scope line. This is the counterfactual made visible, and it is the whole
+     * argument for the product: the value was never a faster workflow, it was a
+     * smaller project.
+     *
+     * It states a COUNT and a PERCENTAGE and stops there. It is deliberately silent
+     * on hours or days saved, and that restraint is the point — any time estimate
+     * would be invented, and this is a tool whose entire credibility rests on every
+     * figure it prints being checkable. Fabricating the one number that flatters us
+     * is exactly how you lose an audience that has been told nothing here is made up.
+     * The presenter can say "call it two days" out loud; that is a human's estimate,
+     * not the tool asserting one.
+     */
+    if (solved > 0 && comps.length > 0) {
+      const pct = Math.round((solved / comps.length) * 100);
+      out.push(
+        `**You are not building ${plural(solved, 'component', 'components')} of ${comps.length} — ` +
+          `${pct}% of this project already exists.**`,
+      );
+      out.push('');
+    }
   }
 
   /* The legend. Without it the verdict headings below are three unexplained words. */
