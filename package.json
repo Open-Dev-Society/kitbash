@@ -34,7 +34,7 @@
     "start": "tsc && node build/index.js",
     "start:http": "node build/index.js --http",
     "skill": "node build/scripts/skill.js",
-    "prepack": "tsc",
+    "prepare": "tsc",
     "snapshot": "node build/scripts/snapshot.js",
     "check:examples": "node build/scripts/check-examples.js"
   },

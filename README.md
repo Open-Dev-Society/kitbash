@@ -14,7 +14,7 @@ It works in any agent that speaks MCP, and it needs no API key.
 [![MCP](https://img.shields.io/badge/MCP-server-8a2be2)](https://modelcontextprotocol.io)
 
 ```bash
-claude mcp add kitbash -- npx -y kitbash-mcp
+claude mcp add kitbash -- npx -y github:Open-Dev-Society/kitbash
 ```
 
 ---
@@ -77,8 +77,8 @@ Pick whichever fits how you work. They all run the same two tools.
 ### MCP server (Claude Code, Cursor, Claude Desktop, VS Code, Codex, Windsurf, …)
 
 ```bash
-claude mcp add kitbash -- npx -y kitbash-mcp     # Claude Code
-codex mcp add kitbash -- npx -y kitbash-mcp      # Codex CLI
+claude mcp add kitbash -- npx -y github:Open-Dev-Society/kitbash     # Claude Code
+codex mcp add kitbash -- npx -y github:Open-Dev-Society/kitbash      # Codex CLI
 ```
 
 For clients configured in JSON (Cursor `~/.cursor/mcp.json`, Claude Desktop
@@ -87,7 +87,7 @@ For clients configured in JSON (Cursor `~/.cursor/mcp.json`, Claude Desktop
 ```json
 {
   "mcpServers": {
-    "kitbash": { "command": "npx", "args": ["-y", "kitbash-mcp"] }
+    "kitbash": { "command": "npx", "args": ["-y", "github:Open-Dev-Society/kitbash"] }
   }
 }
 ```
@@ -97,12 +97,12 @@ VS Code (`.vscode/mcp.json`):
 ```json
 {
   "servers": {
-    "kitbash": { "type": "stdio", "command": "npx", "args": ["-y", "kitbash-mcp"] }
+    "kitbash": { "type": "stdio", "command": "npx", "args": ["-y", "github:Open-Dev-Society/kitbash"] }
   }
 }
 ```
 
-On native Windows, use `"command": "cmd", "args": ["/c", "npx", "-y", "kitbash-mcp"]`.
+On native Windows, use `"command": "cmd", "args": ["/c", "npx", "-y", "github:Open-Dev-Society/kitbash"]`.
 
 ### Remote connector (claude.ai, ChatGPT, any client that takes a URL)
 
@@ -122,7 +122,7 @@ npx skills add Open-Dev-Society/kitbash
 
 This installs [`skills/kitbash/SKILL.md`](skills/kitbash/SKILL.md) into Claude Code, Cursor,
 Codex, and [other agents](https://skills.sh). The skill carries the same rubric, and
-verification runs through `npx kitbash-mcp verify`. It's the same fact-checker without an
+verification runs through `npx github:Open-Dev-Society/kitbash verify`. It's the same fact-checker without an
 MCP connection.
 
 ## Use it

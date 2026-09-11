@@ -57,7 +57,7 @@ Pipe the whole slate, WRITE components included, into the verifier in one call
 \`gh auth token\`, otherwise runs at 60 checks an hour):
 
 \`\`\`bash
-npx -y kitbash-mcp verify <<'EOF'
+npx -y github:Open-Dev-Society/kitbash verify <<'EOF'
 {
   "idea": "<the idea, verbatim>",
   "stack": "<omit if unstated>",

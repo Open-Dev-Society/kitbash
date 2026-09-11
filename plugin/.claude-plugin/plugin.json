@@ -6,7 +6,7 @@
   "mcpServers": {
     "kitbash": {
       "command": "npx",
-      "args": ["-y", "kitbash-mcp"]
+      "args": ["-y", "github:Open-Dev-Society/kitbash"]
     }
   }
 }
