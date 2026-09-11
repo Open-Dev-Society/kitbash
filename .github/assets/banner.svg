@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="1200" height="520" role="img" aria-label="Kitbash — most of what you're about to build already exists">
+  <rect width="1200" height="520" fill="#E9E8E3"/>
+  <rect x="0.5" y="0.5" width="1199" height="519" fill="none" stroke="#CAC6BD"/>
+
+  <text x="64" y="70" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" letter-spacing="2.4" fill="#868177">KITBASH · MODEL CONTEXT PROTOCOL SERVER</text>
+  <text x="1136" y="70" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" letter-spacing="2.4" fill="#868177">SHEET 01 — THE PREMISE</text>
+  <line x1="64" y1="96" x2="1136" y2="96" stroke="#CAC6BD"/>
+
+  <text x="64" y="196" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="62" font-weight="700" letter-spacing="-1.2" fill="#1A1714">Most of what you're</text>
+  <text x="64" y="266" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="62" font-weight="700" letter-spacing="-1.2" fill="#1A1714">about to build</text>
+  <text x="64" y="336" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="62" font-weight="700" letter-spacing="-1.2" fill="#C4441C">already exists.</text>
+
+  <text x="64" y="386" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="19" fill="#57534B">Describe what you want to build. Every repository verified against the GitHub API.</text>
+
+  <rect x="64" y="418" width="116" height="38" rx="4" fill="#1B6553" fill-opacity="0.1" stroke="#1B6553"/>
+  <text x="122" y="443" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" letter-spacing="1.6" fill="#1B6553">BORROW</text>
+  <text x="196" y="443" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="15" fill="#57534B">take the dependency</text>
+
+  <rect x="424" y="418" width="124" height="38" rx="4" fill="#96601A" fill-opacity="0.1" stroke="#96601A"/>
+  <text x="486" y="443" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" letter-spacing="1.6" fill="#96601A">KITBASH</text>
+  <text x="564" y="443" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="15" fill="#57534B">read it, adapt it</text>
+
+  <rect x="760" y="418" width="100" height="38" rx="4" fill="#2D57A0" fill-opacity="0.1" stroke="#2D57A0"/>
+  <text x="810" y="443" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" letter-spacing="1.6" fill="#2D57A0">WRITE</text>
+  <text x="876" y="443" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="15" fill="#57534B">just write it</text>
+
+  <line x1="64" y1="484" x2="1136" y2="484" stroke="#CAC6BD"/>
+  <text x="64" y="506" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" letter-spacing="1.4" fill="#868177">OPEN DEV SOCIETY</text>
+  <text x="1136" y="506" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" letter-spacing="1.4" fill="#868177">NO API KEY · NO SIGN-UP</text>
+</svg>
