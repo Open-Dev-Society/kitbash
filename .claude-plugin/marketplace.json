@@ -1,0 +1,11 @@
+{
+  "name": "kitbash",
+  "owner": { "name": "Open Dev Society" },
+  "plugins": [
+    {
+      "name": "kitbash",
+      "source": "./plugin",
+      "description": "Describe what you want to build. Kitbash tells you which parts already exist, which to adapt, and which to just write — and deletes the repos that don't exist."
+    }
+  ]
+}

@@ -20,10 +20,10 @@
 
 /**
  * The pristine writer, captured before anything has a chance to wrap it. The transport
- * owns stdout; nothing else in this process is allowed near it.
+ * owns stdout; the only other thing allowed near it is the `verify` CLI below, where
+ * there is no transport and stdout is the report.
  */
 const _w = process.stdout.write.bind(process.stdout);
-void _w;
 
 console.log = console.info = console.debug = ((...a: unknown[]) => {
   process.stderr.write(a.join(' ') + '\n');
@@ -57,13 +57,28 @@ process.on('unhandledRejection', (reason) => {
 /* boot                                                                */
 /* ------------------------------------------------------------------ */
 
-const { startServer } = await import('./server.js');
+/**
+ *   kitbash-mcp                 stdio MCP server (local install, plugin)
+ *   kitbash-mcp --http          Streamable HTTP on $PORT (hosted connector)
+ *   kitbash-mcp verify < slate  one-shot verifier for the standalone skill
+ */
+const mode = process.argv[2];
 
 try {
-  await startServer();
+  if (mode === 'verify') {
+    const { verifyInput, verifySlate, resultJson } = await import('./tools/verify.js');
+    let raw = '';
+    for await (const chunk of process.stdin) raw += chunk;
+    const result = await verifySlate(verifyInput.parse(JSON.parse(raw)));
+    // Exit from the write callback: stdout to a pipe is async on macOS, and exiting
+    // straight after write() truncates a long report.
+    _w(`${result.markdown}\n\n${resultJson(result)}\n`, () => process.exit(0));
+  } else {
+    const { startServer, startHttpServer } = await import('./server.js');
+    if (mode === '--http') await startHttpServer(Number(process.env.PORT) || 3000);
+    else await startServer();
+  }
 } catch (err) {
-  console.error(
-    `[kitbash] fatal: could not start on stdio: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
-  );
+  console.error(`[kitbash] fatal: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
   process.exit(1);
 }

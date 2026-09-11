@@ -85,8 +85,29 @@ const componentSchema = z.object({
     .describe('Why this verdict, specific to this component. Not a README summary.'),
   candidates: z
     .array(repoRefSchema)
+    .max(5)
     .describe('Empty for WRITE. 1-3 ranked repos for BORROW/KITBASH.'),
 });
+
+/**
+ * Shared by the MCP tool and the `kitbash-mcp verify` CLI. The .max() caps are the
+ * trust boundary for the hosted server: every candidate is a GitHub request against
+ * one shared token, so an unbounded slate would let one caller drain it for everyone.
+ */
+export const verifyInput = z.object({
+  idea: z.string().describe('The same idea string passed to `kitbash`.'),
+  stack: z.string().optional().describe('Target stack, if known.'),
+  target_license: z
+    .string()
+    .optional()
+    .describe(`SPDX id the user ships under. Defaults to ${DEFAULT_TARGET_LICENSE}.`),
+  components: z
+    .array(componentSchema)
+    .max(12)
+    .describe('The full slate, including WRITE components.'),
+});
+
+export type VerifyInput = z.infer<typeof verifyInput>;
 
 /* ------------------------------------------------------------------ */
 /* fetch + cache fallback                                              */
@@ -332,6 +353,93 @@ function buildInstructions(components: ResolvedComponent[], stats: VerifyStats):
 /* registration                                                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The whole pipeline, transport-free. The MCP tool and the `kitbash-mcp verify` CLI
+ * (which the standalone skill shells out to) both land here.
+ */
+export async function verifySlate({
+  idea,
+  stack,
+  target_license,
+  components,
+}: VerifyInput): Promise<VerifyResult> {
+  void stack; // accepted for symmetry with `kitbash`; verification is stack-agnostic
+  const targetLicense =
+    target_license && target_license.trim() ? target_license.trim() : DEFAULT_TARGET_LICENSE;
+
+  const input = (components ?? []) as ComponentCandidate[];
+
+  // 1. Flatten every ref across every component, remembering where each came from,
+  //    so one batched round-trip covers the whole slate.
+  const refs: RepoRef[] = [];
+  const spans: Array<{ start: number; count: number }> = [];
+
+  for (const c of input) {
+    const candidates = Array.isArray(c.candidates) ? c.candidates : [];
+    spans.push({ start: refs.length, count: candidates.length });
+    refs.push(...candidates);
+  }
+
+  // 2 + 3. One batch, with a snapshot fallback if the network is against us.
+  const { facts, source } = await fetchWithFallback(refs);
+
+  // 4 + 5. Assess, disqualify, rank, and rebuild each component.
+  const resolutions = input.map((c, i) => {
+    const span = spans[i]!;
+    return resolveComponent(c, facts.slice(span.start, span.start + span.count), targetLicense);
+  });
+
+  const resolved: ResolvedComponent[] = resolutions.map((x) => x.component);
+
+  // Where rank() overrode the agent's own #1. The renderer needs this to avoid
+  // printing the agent's rationale under a repo it was not written about.
+  const demotions = new Map<string, RepoAssessment>();
+  for (const x of resolutions) {
+    if (x.demotedFrom) demotions.set(x.component.id, x.demotedFrom);
+  }
+
+  // 6.
+  const stats = computeStats(resolved);
+
+  const github: GithubStatus = {
+    authenticated: isAuthenticated(),
+    remaining: lastRemaining(),
+    source,
+  };
+
+  // 7.
+  const next_action: VerifyResult['next_action'] = resolved.some((c) => c.needs_recall)
+    ? 'RECALL_REPLACEMENTS'
+    : 'DONE';
+
+  const report: Omit<VerifyResult, 'markdown'> = {
+    idea,
+    components: resolved,
+    stats,
+    github,
+    next_action,
+    instructions: buildInstructions(resolved, stats),
+  };
+
+  // 8.
+  const markdown = renderReport(report, Date.now(), demotions);
+
+  console.error(
+    `[verify] ${resolved.length} component(s), ${stats.proposed} proposed, ` +
+      `${stats.hallucinated} hallucinated, source=${source}, next=${next_action}`,
+  );
+
+  return { ...report, markdown };
+}
+
+/**
+ * The same run as data, so the agent can branch on next_action instead of trying to
+ * parse intent back out of the prose.
+ */
+export function resultJson(result: VerifyResult): string {
+  return `<kitbash_result_json>\n${JSON.stringify(result, null, 2)}\n</kitbash_result_json>`;
+}
+
 export function registerVerifyTool(server: McpServer): void {
   server.registerTool(
     'kitbash_verify',
@@ -339,101 +447,19 @@ export function registerVerifyTool(server: McpServer): void {
       title: 'Kitbash: verify the slate (step 2 of 2)',
       description: DESCRIPTION,
       // RAW ZOD SHAPE — not z.object(), not JSON Schema.
-      inputSchema: {
-        idea: z.string().describe('The same idea string passed to `kitbash`.'),
-        stack: z.string().optional().describe('Target stack, if known.'),
-        target_license: z
-          .string()
-          .optional()
-          .describe(`SPDX id the user ships under. Defaults to ${DEFAULT_TARGET_LICENSE}.`),
-        components: z
-          .array(componentSchema)
-          .describe('The full slate, including WRITE components.'),
-      },
+      inputSchema: verifyInput.shape,
       annotations: {
         readOnlyHint: true,
         idempotentHint: true,
       },
     },
-    async ({ idea, stack, target_license, components }) => {
-      void stack; // accepted for symmetry with `kitbash`; verification is stack-agnostic
-      const targetLicense =
-        target_license && target_license.trim() ? target_license.trim() : DEFAULT_TARGET_LICENSE;
-
-      const input = (components ?? []) as ComponentCandidate[];
-
-      // 1. Flatten every ref across every component, remembering where each came from,
-      //    so one batched round-trip covers the whole slate.
-      const refs: RepoRef[] = [];
-      const spans: Array<{ start: number; count: number }> = [];
-
-      for (const c of input) {
-        const candidates = Array.isArray(c.candidates) ? c.candidates : [];
-        spans.push({ start: refs.length, count: candidates.length });
-        refs.push(...candidates);
-      }
-
-      // 2 + 3. One batch, with a snapshot fallback if the network is against us.
-      const { facts, source } = await fetchWithFallback(refs);
-
-      // 4 + 5. Assess, disqualify, rank, and rebuild each component.
-      const resolutions = input.map((c, i) => {
-        const span = spans[i]!;
-        return resolveComponent(c, facts.slice(span.start, span.start + span.count), targetLicense);
-      });
-
-      const resolved: ResolvedComponent[] = resolutions.map((x) => x.component);
-
-      // Where rank() overrode the agent's own #1. The renderer needs this to avoid
-      // printing the agent's rationale under a repo it was not written about.
-      const demotions = new Map<string, RepoAssessment>();
-      for (const x of resolutions) {
-        if (x.demotedFrom) demotions.set(x.component.id, x.demotedFrom);
-      }
-
-      // 6.
-      const stats = computeStats(resolved);
-
-      const github: GithubStatus = {
-        authenticated: isAuthenticated(),
-        remaining: lastRemaining(),
-        source,
-      };
-
-      // 7.
-      const next_action: VerifyResult['next_action'] = resolved.some((c) => c.needs_recall)
-        ? 'RECALL_REPLACEMENTS'
-        : 'DONE';
-
-      const report: Omit<VerifyResult, 'markdown'> = {
-        idea,
-        components: resolved,
-        stats,
-        github,
-        next_action,
-        instructions: buildInstructions(resolved, stats),
-      };
-
-      // 8.
-      const markdown = renderReport(report, Date.now(), demotions);
-
-      const result: VerifyResult = { ...report, markdown };
-
-      console.error(
-        `[verify] ${resolved.length} component(s), ${stats.proposed} proposed, ` +
-          `${stats.hallucinated} hallucinated, source=${source}, next=${next_action}`,
-      );
-
+    async (args) => {
+      const result = await verifySlate(args);
       return {
         content: [
           // The artifact the user sees.
-          { type: 'text' as const, text: markdown },
-          // The same run as data, so the agent can branch on next_action instead of
-          // trying to parse intent back out of the prose.
-          {
-            type: 'text' as const,
-            text: `<kitbash_result_json>\n${JSON.stringify(result, null, 2)}\n</kitbash_result_json>`,
-          },
+          { type: 'text' as const, text: result.markdown },
+          { type: 'text' as const, text: resultJson(result) },
         ],
       };
     },

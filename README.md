@@ -1,78 +1,195 @@
 # kitbash
 
-An MCP server that tells you which parts of your idea already exist.
+**Most of what you're about to build already exists.**
 
-Describe what you want to build. Kitbash decomposes it into components and gives each
-one a verdict — **BORROW** (a real, maintained dependency exists; rewriting it is the
-mistake), **KITBASH** (good reference, imperfect fit — read it, adapt it, don't take the
-dep), or **WRITE** (generic enough that you should just write it).
+Describe what you want to make. Kitbash breaks it into parts and gives each one a verdict:
+**BORROW** it, **KITBASH** it (read it, adapt it), or **WRITE** it yourself. Then it checks
+every repository it named against the live GitHub API and deletes the ones that don't exist
+before you see them.
 
-Then it checks every repo it named against the live GitHub API and deletes the ones that
-don't exist.
+It works in any agent that speaks MCP, and it needs no API key.
 
-## The two-tool handshake
+[![npm](https://img.shields.io/npm/v/kitbash-mcp?color=cb3837&label=npm)](https://www.npmjs.com/package/kitbash-mcp)
+[![license](https://img.shields.io/badge/license-GPL--2.0-blue)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-server-8a2be2)](https://modelcontextprotocol.io)
 
-**There is no model in this server.** That is the design, not a shortcut. The host agent
-already has far better GitHub recall than anything this server could afford to run. So
-the server does not try to out-remember it — it aims it, then stops it from lying.
+```bash
+claude mcp add kitbash -- npx -y kitbash-mcp
+```
 
-1. **`kitbash`** returns a rubric and nothing else. The agent does the decomposition and
-   the repo recall itself, following the rubric.
-2. **`kitbash_verify`** takes the agent's completed slate and fact-checks it. Every
-   `owner/name` is resolved against `GET /repos/{owner}/{repo}`. Invented repos are
-   dropped and counted. Archived, unlicensed, forked, renamed, and long-abandoned repos
-   are flagged. BORROW on a repo nobody has touched in two years gets a loud warning.
-   Survivors are ranked and rendered into the report the user sees.
+---
 
-The split exists because the failure this tool prevents is *confident invention*. A model
-asked for repo names will produce plausible ones at a meaningful rate, and they read as
-completely real in a chat window. Step 2 is the only reason to trust step 1.
+## The trap
 
-Ranking deliberately treats stars as a weak signal — logarithmic, capped at 20 of 100
-points. A 50k-star repo out-earns a 300-star repo by about 9 points: enough to break a
-tie, never enough to win on popularity alone. The 300-star exact fit that GitHub search
-buries is the thing worth surfacing.
+Your coding agent will happily rewrite a PDF parser for you. It'll take twenty minutes
+and it'll look completely correct.
+
+It won't be. PDF parsing is years of edge cases that appear in no spec: broken xref
+tables, CID fonts with no ToUnicode map. The same goes for timezone math, OAuth, Unicode
+normalization, container muxing, and rate limiting under contention. You find out in
+production.
+
+The opposite trap is just as common: pulling in a dependency to save twenty lines of glue.
+
+Search can't help. It ranks by popularity, not fit, so the right small library stays
+buried on page four. And when a model will write anything in twenty minutes, rebuilding
+*feels* free, so nobody looks first.
+
+**Kitbash is the ten-second judgment a senior developer makes before writing anything,
+turned into a tool.** It isn't selling speed. Four components you never build beat four
+components you build quickly.
+
+## What it looks like
+
+Real output for *"a CLI that ingests podcast RSS, transcribes episodes, and makes them
+searchable."* Every repo returned `200` from the GitHub API seconds before it was printed.
+
+| # | Component | Verdict | Part | Stars | License |
+|---|---|---|---|---|---|
+| 01 | Podcast feed parsing | **BORROW** | [gpodder/podcastparser](https://github.com/gpodder/podcastparser) | 144 | ISC |
+| 02 | Speech-to-text | **BORROW** | [SYSTRAN/faster-whisper](https://github.com/SYSTRAN/faster-whisper) | 24,000 | MIT |
+| 03 | Transcript search index | **KITBASH** | [simonw/sqlite-utils](https://github.com/simonw/sqlite-utils) | 2,100 | Apache-2.0 |
+| 04 | Episode pipeline and CLI | **WRITE** | *yours: about a hundred lines* | — | — |
+
+Two things to notice:
+
+- **A 144-star repo beat a 2,400-star one for the lead slot.** `podcastparser` is the parser
+  the gPodder client actually uses. It streams instead of building the XML tree, and it
+  already normalizes the `itunes:duration` mess. `feedparser` is the popular fallback,
+  ranked second. Surfacing the exact fit GitHub search buries is the whole product.
+- **It told you to write part 04 yourself**, and argued for it: *"The interesting state
+  here is domain state, not queue state. Transcription is minutes per episode, so the only
+  checkpoint that matters is a row per episode with a status column. Any task-queue
+  dependency would still leave you writing that row yourself."* A tool that recommends a
+  repo for everything is a tool nobody believes, so WRITE is a required outcome.
 
 ## Install
 
-```bash
-npm install
-npm run build
+Pick whichever fits how you work. They all run the same two tools.
+
+### Claude Code plugin
+
+```
+/plugin marketplace add Open-Dev-Society/kitbash
+/plugin install kitbash@kitbash
 ```
 
-Requires Node 18+ (developed on Node 24).
-
-### GitHub token
-
-Unauthenticated works but is rate-limited to 60 requests/hour. Kitbash picks up a token
-from `GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth token` — in that order. If you have the
-GitHub CLI authenticated, there is nothing to configure.
-
-Without a token, private repos are indistinguishable from nonexistent ones (both 404),
-so they will be reported as not found.
-
-## Register the server
+### MCP server (Claude Code, Cursor, Claude Desktop, VS Code, Codex, Windsurf, …)
 
 ```bash
-claude mcp add kitbash -- node "$(pwd)/build/index.js"
+claude mcp add kitbash -- npx -y kitbash-mcp     # Claude Code
+codex mcp add kitbash -- npx -y kitbash-mcp      # Codex CLI
 ```
 
-The path must be **absolute**. `claude mcp add` registers at user scope, so a relative
-`build/index.js` resolves against whatever directory the client happens to be launched
-from — anywhere but this repo it exits 1 with `MODULE_NOT_FOUND` before the transport
-connects, and the client reports only a generic "server failed to start" with both tools
-silently absent.
+For clients configured in JSON (Cursor `~/.cursor/mcp.json`, Claude Desktop
+`claude_desktop_config.json`, Windsurf):
 
-Or use the project-scoped `.mcp.json` already in this repo, which registers the same
-command (also as an absolute path) for anyone who opens the project.
+```json
+{
+  "mcpServers": {
+    "kitbash": { "command": "npx", "args": ["-y", "kitbash-mcp"] }
+  }
+}
+```
 
-## Demo query
+VS Code (`.vscode/mcp.json`):
 
-> Build me a desktop app that watches a folder and makes scanned PDFs searchable.
+```json
+{
+  "servers": {
+    "kitbash": { "type": "stdio", "command": "npx", "args": ["-y", "kitbash-mcp"] }
+  }
+}
+```
 
-The agent calls `kitbash`, produces a slate, calls `kitbash_verify`, and gets back a
-report where the repos that don't exist have already been removed — with the count
-stated at the top.
+On native Windows, use `"command": "cmd", "args": ["/c", "npx", "-y", "kitbash-mcp"]`.
+
+### Remote connector (claude.ai, ChatGPT, any client that takes a URL)
+
+Add a custom connector pointing at a hosted kitbash:
+
+```
+https://YOUR-DEPLOYMENT/mcp
+```
+
+It speaks Streamable HTTP with no auth. See [Self-hosting](#self-hosting) to run your own.
+
+### Agent skill (no MCP required)
+
+```bash
+npx skills add Open-Dev-Society/kitbash
+```
+
+This installs [`skills/kitbash/SKILL.md`](skills/kitbash/SKILL.md) into Claude Code, Cursor,
+Codex, and [other agents](https://skills.sh). The skill carries the same rubric, and
+verification runs through `npx kitbash-mcp verify`. It's the same fact-checker without an
+MCP connection.
+
+## Use it
+
+Describe something you were about to build:
+
+> Use kitbash: a desktop app that watches a folder and makes scanned PDFs searchable. TypeScript, MIT.
+
+Saying "use kitbash" helps. Otherwise the agent sometimes answers from its own knowledge
+and skips the tool. A run takes about a minute.
+
+## How it works
+
+**There is no model inside this server.** That's the design, not a shortcut.
+
+Recall is the product: knowing that a 144-star parser exists at all. The best recall
+available is in the model already running your session, which is far larger than anything
+this server could afford to host. So kitbash doesn't try to out-remember it. It aims that
+recall, then stops it from lying.
+
+1. **`kitbash`** returns a rubric and nothing else. The agent decomposes the idea into 3–6
+   functionally distinct components, gives each a verdict, and recalls candidate repos,
+   favoring the under-starred exact fit over the popular general one. The rubric ships a
+   hazard list of domains where correctness was hard-won (PDF, crypto, timezones, OAuth,
+   codecs, Unicode, …), so those lean BORROW. Glue, config, CRUD, and anything under ~100
+   obvious lines lean WRITE.
+2. **`kitbash_verify`** fact-checks the slate. Every `owner/name` goes to
+   `GET /repos/{owner}/{repo}`, and the ones that don't exist are dropped and counted.
+   Archived, disabled, unlicensed, forked, renamed, and long-abandoned repos are flagged,
+   and BORROW on a repo nobody has touched in two years gets a loud warning. If every
+   candidate for a component dies, the agent is sent back for replacements before it can
+   answer.
+
+A model asked for repo names produces plausible ones, and invented names read as
+completely real in a chat window. Step 2 is the only reason to trust step 1: **every repo
+in the final report was confirmed to exist seconds before you saw it.**
+
+Ranking keeps the agent's own ordering first, and repo health can only *demote*. Stars are
+a weak signal on purpose. Sorting by stars would re-bury exactly the repo the rubric just
+dug up.
+
+About 950 ms to verify 10 repos, in parallel over REST.
+
+## GitHub token
+
+Unauthenticated works, but it's limited to 60 requests an hour. Kitbash picks up a token
+from `GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth token`, in that order. If the GitHub CLI is
+logged in, there's nothing to configure.
+
+Without a token, private repos look the same as nonexistent ones (both 404), so they'll be
+reported as not found.
+
+## Self-hosting
+
+The same binary serves Streamable HTTP for remote connectors:
+
+```bash
+npm ci && npm run build
+GITHUB_TOKEN=ghp_… PORT=3000 npm run start:http    # → http://localhost:3000/mcp
+```
+
+It runs stateless: a fresh server per request, and no user data is kept between calls.
+Deploy it anywhere that runs Node 18+ (Render, Railway, Fly, a VPS) with build command
+`npm ci && npm run build` and start command `npm run start:http`.
+
+Set `GITHUB_TOKEN` in production. Every caller shares that token's 5,000 requests an hour,
+and a full verification run costs up to 15.
 
 ## Offline insurance
 
@@ -83,17 +200,27 @@ before a demo:
 npm run snapshot -- tesseract-ocr/tesseract mozilla/pdf.js nextapps-de/flexsearch
 ```
 
-If the network degrades mid-run, `kitbash_verify` fills the gaps from the snapshot and
-labels every cached record as cached, in the report and in the JSON. A 404 is never
-filled from cache — a repo that doesn't exist is a real answer, not a gap.
+If the network degrades mid-run, verification fills the gaps from the snapshot and labels
+every cached record as cached. A 404 is never filled from cache: a repo that doesn't exist
+is a real answer, not a gap.
 
-## Notes for contributors
+## Contributing
 
-stdout is the JSON-RPC channel. One `console.log` anywhere in the process corrupts the
-protocol and the server dies silently. Use `console.error` for all logging;
-`src/index.ts` reroutes `console.log`/`info`/`debug` to stderr as a backstop.
+```bash
+npm install && npm run build
+claude mcp add kitbash-dev -- node "$(pwd)/build/index.js"
+```
 
-Local imports need explicit `.js` extensions. Under Node16 ESM resolution, omitting them
-typechecks clean and crashes at runtime.
+- stdout is the JSON-RPC channel. One `console.log` anywhere corrupts the protocol and the
+  server dies silently. Log with `console.error`. `src/index.ts` reroutes
+  `console.log`/`info`/`debug` to stderr as a backstop.
+- Local imports need explicit `.js` extensions. Under Node16 ESM resolution, leaving them
+  out typechecks clean and crashes at runtime.
+- `src/types.ts` is the frozen contract. Every other module depends on it and nothing else.
+- `src/rubric.ts` is the product. After editing it, run `npm run skill` to regenerate
+  `skills/kitbash/SKILL.md`, and `npm run check:examples` to confirm every repo the rubric
+  names still exists.
 
-`src/types.ts` is the frozen contract. Every other module depends on it and nothing else.
+## License
+
+[GPL-2.0](LICENSE)

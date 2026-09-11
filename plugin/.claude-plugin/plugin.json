@@ -1,0 +1,12 @@
+{
+  "name": "kitbash",
+  "description": "Describe what you want to build. Kitbash tells you which parts already exist, which to adapt, and which to just write — and deletes the repos that don't exist.",
+  "author": { "name": "Open Dev Society" },
+  "homepage": "https://github.com/Open-Dev-Society/kitbash",
+  "mcpServers": {
+    "kitbash": {
+      "command": "npx",
+      "args": ["-y", "kitbash-mcp"]
+    }
+  }
+}

@@ -1,16 +1,19 @@
 /**
  * Server assembly. Builds the McpServer, registers both tools, and connects it to
- * stdio. Deliberately contains no business logic — everything interesting lives in
- * rubric.ts (the prompt) and the verify pipeline (the fact check).
+ * stdio (local install) or HTTP (hosted connector). Deliberately contains no business
+ * logic — everything interesting lives in rubric.ts (the prompt) and the verify
+ * pipeline (the fact check).
  *
  * NEVER writes to stdout except through the transport itself.
  */
 
 import { readFileSync } from 'node:fs';
+import { createServer as createHttpServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
 import { registerPlanTool } from './tools/plan.js';
 import { registerVerifyTool } from './tools/verify.js';
@@ -54,4 +57,52 @@ export async function startServer(): Promise<McpServer> {
   console.error(`[kitbash] mcp server v${readVersion()} ready on stdio — tools: kitbash, kitbash_verify`);
 
   return server;
+}
+
+/**
+ * Hosted mode — what a remote MCP connector (claude.ai, ChatGPT, …) talks to.
+ *
+ * Stateless: a fresh McpServer + transport per POST. Both tools are pure request →
+ * response, so there is no session worth keeping, and nothing from one caller's
+ * request can reach the next. GET/DELETE only mean something with sessions (SSE
+ * streams, teardown), so they get 405, which the spec allows.
+ */
+export async function startHttpServer(port: number): Promise<void> {
+  const http = createHttpServer(async (req, res) => {
+    const path = new URL(req.url ?? '/', 'http://localhost').pathname;
+    if (path === '/') {
+      res.writeHead(200, { 'content-type': 'text/plain' }).end('kitbash MCP server — connect to /mcp\n');
+      return;
+    }
+    if (path !== '/mcp') {
+      res.writeHead(404).end();
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.writeHead(405, { allow: 'POST' }).end();
+      return;
+    }
+
+    const server = createServer();
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    res.on('close', () => {
+      void transport.close();
+      void server.close();
+    });
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(req, res);
+    } catch (err) {
+      console.error(
+        `[kitbash] http request failed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+      );
+      if (!res.headersSent) res.writeHead(500).end();
+    }
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    http.once('error', reject);
+    http.listen(port, resolve);
+  });
+  console.error(`[kitbash] mcp server v${readVersion()} listening on :${port}/mcp — tools: kitbash, kitbash_verify`);
 }

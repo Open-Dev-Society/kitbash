@@ -578,12 +578,13 @@
   <section class="stack-lg">
     <div class="stack">
       <p class="eyebrow">Sheet 06 — assembly</p>
-      <h2>Two lines to install</h2>
+      <h2>One line to install</h2>
       <p class="lede">Runs inside Claude Code, Claude Desktop, Cursor, or any MCP-compatible agent. It reads your existing <code>gh</code> credentials, so there's no key to configure and nothing to sign up for.</p>
     </div>
 
-    <div class="cmd"><span class="prompt">$ </span>npm install &amp;&amp; npm run build
-<span class="prompt">$ </span>claude mcp add kitbash -- node ./build/index.js</div>
+    <div class="cmd"><span class="prompt">$ </span>claude mcp add kitbash -- npx -y kitbash-mcp</div>
+
+    <p>Or as a Claude Code plugin: <code>/plugin marketplace add Open-Dev-Society/kitbash</code>. Or as an agent skill, no MCP needed: <code>npx skills add Open-Dev-Society/kitbash</code>.</p>
 
     <p>Then describe something you were about to build, and see how much of it you don't have to.</p>
   </section>

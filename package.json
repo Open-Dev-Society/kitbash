@@ -3,14 +3,38 @@
   "version": "0.1.0",
   "description": "Describe what you want to build. Kitbash tells you which parts already exist, which to adapt, and which to just write.",
   "type": "module",
+  "mcpName": "io.github.Open-Dev-Society/kitbash",
+  "license": "GPL-2.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Open-Dev-Society/kitbash.git"
+  },
+  "homepage": "https://github.com/Open-Dev-Society/kitbash#readme",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "claude",
+    "claude-code",
+    "agent-skills",
+    "github",
+    "hallucination",
+    "dependencies"
+  ],
   "main": "build/index.js",
   "bin": {
     "kitbash-mcp": "build/index.js"
   },
+  "files": [
+    "build",
+    "fixtures"
+  ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "start": "tsc && node build/index.js",
+    "start:http": "node build/index.js --http",
+    "skill": "node build/scripts/skill.js",
+    "prepack": "tsc",
     "snapshot": "node build/scripts/snapshot.js",
     "check:examples": "node build/scripts/check-examples.js"
   },
