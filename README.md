@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/-Claude%20Code-black?style=for-the-badge&logoColor=white&logo=claude&color=D97757" alt="Claude Code" />
     <img src="https://img.shields.io/badge/-GitHub%20API-black?style=for-the-badge&logoColor=white&logo=github&color=181717" alt="GitHub API" />
     <img src="https://img.shields.io/badge/-Zod-black?style=for-the-badge&logoColor=white&logo=zod&color=3E67B1" alt="Zod" />
-    <a href="https://skills.sh/open-dev-society/kitbash/kitbash"><img src="https://skills.sh/b/Open-Dev-Society/kitbash" alt="skills.sh installs" /></a>
+    <a href="https://skills.sh/open-dev-society/kitbash/kitbash"><img src="https://img.shields.io/badge/-skills.sh-black?style=for-the-badge&logoColor=white&color=000000" alt="skills.sh" /></a>
   </div>
 </div>
 
@@ -220,8 +220,8 @@ npx skills add Open-Dev-Society/kitbash
 
 This installs [`skills/kitbash/SKILL.md`](skills/kitbash/SKILL.md) into Claude Code, Cursor,
 Codex, and [every other agent skills.sh supports](https://skills.sh). The skill carries the
-same rubric, and verification runs through `npx github:Open-Dev-Society/kitbash verify`:
-the same fact-checker without an MCP connection.
+same rubric and shells out to the same fact-checker — pinned to an exact commit, see
+[Security](#security) — so it works with no MCP connection at all.
 
 ## 💬 Usage <a name="usage"></a>
 
@@ -367,8 +367,21 @@ Please don't open public issues for security vulnerabilities. Report them privat
 [GitHub security advisories](https://github.com/Open-Dev-Society/kitbash/security/advisories/new)
 or email **opendevsociety@gmail.com**.
 
-Kitbash never logs your GitHub token, never writes outside its own snapshot file, and only
-makes read-only `GET` requests to `api.github.com`.
+**What it touches.** Kitbash's only network requests are read-only
+`GET /repos/{owner}/{name}` calls to `api.github.com`. It writes nothing outside its own
+snapshot file.
+
+**Your GitHub token.** A token is optional — without one you get GitHub's 60 requests an
+hour. When `GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth token` is available, it is sent as an
+`Authorization` header to `api.github.com` and to nothing else, needs no scopes, and is
+never logged or written to disk.
+
+**Pinned execution.** The skill's verify command pins an exact commit instead of tracking
+`main`, so the code cannot change under whoever runs it. Once the npm package is published,
+`npx -y kitbash-mcp@<version>` pins an immutable published version instead.
+
+**Third-party audits.** The skill is scanned by Gen Agent Trust Hub, Socket, and Snyk;
+current results are on its [skills.sh listing](https://skills.sh/open-dev-society/kitbash/kitbash).
 
 ## 📜 License <a name="license"></a>
 
