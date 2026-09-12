@@ -13,6 +13,7 @@
     <img src="https://img.shields.io/badge/-Claude%20Code-black?style=for-the-badge&logoColor=white&logo=claude&color=D97757" alt="Claude Code" />
     <img src="https://img.shields.io/badge/-GitHub%20API-black?style=for-the-badge&logoColor=white&logo=github&color=181717" alt="GitHub API" />
     <img src="https://img.shields.io/badge/-Zod-black?style=for-the-badge&logoColor=white&logo=zod&color=3E67B1" alt="Zod" />
+    [![skills.sh](https://skills.sh/b/Open-Dev-Society/kitbash)](https://skills.sh/open-dev-society/kitbash)
   </div>
 </div>
 
