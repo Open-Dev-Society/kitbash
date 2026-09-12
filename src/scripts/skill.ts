@@ -23,6 +23,16 @@ import { buildRubric } from '../rubric.js';
 
 const OUT = fileURLToPath(new URL('../../skills/kitbash/SKILL.md', import.meta.url));
 
+/**
+ * The commit the skill's verify command runs from.
+ *
+ * NOT a convenience. `npx github:owner/repo` with no ref runs whatever is on main at that
+ * moment, and a security audit of this skill flagged exactly that: unpinned remote
+ * execution of GitHub-hosted code. A pinned commit cannot change under the person running
+ * it. Move this forward deliberately when the verifier changes, and regenerate.
+ */
+const PIN = 'ffa0f30d66823a0689fcfd9b90176f9cb7de4abd';
+
 const rubric = buildRubric({
   idea: "<the user's idea, in their own words>",
   stack: '<the stack the user named — drop this constraint if they did not name one>',
@@ -89,12 +99,10 @@ ${parts[0]!.trimEnd()}
 The slate is unverified recall, and some of the repositories in it do not exist. Verification
 is what makes the answer trustworthy, so it runs before the user sees anything.
 
-Pipe the whole slate, WRITE components included, into the verifier in one call. It needs
-Node 18+, and picks up a GitHub token from \`GITHUB_TOKEN\`, \`GH_TOKEN\`, or \`gh auth token\`
-(without one it runs at 60 checks an hour):
+Pipe the whole slate, WRITE components included, into the verifier in one call (needs Node 18+):
 
 \`\`\`bash
-npx -y github:Open-Dev-Society/kitbash verify <<'EOF'
+npx -y github:Open-Dev-Society/kitbash#${PIN} verify <<'EOF'
 {
   "idea": "<the idea, verbatim>",
   "stack": "<omit if unstated>",
@@ -103,6 +111,22 @@ npx -y github:Open-Dev-Society/kitbash verify <<'EOF'
 }
 EOF
 \`\`\`
+
+### What that command runs
+
+- Kitbash's own verifier, from \`github.com/Open-Dev-Society/kitbash\`, **pinned to commit
+  \`${PIN.slice(0, 7)}\`** — the code is fixed at a revision you can read, not whatever is on
+  main today.
+- Its only network requests are read-only \`GET /repos/{owner}/{name}\` calls to
+  \`api.github.com\`. It writes nothing outside its own package directory.
+- **A GitHub token is optional.** If \`GITHUB_TOKEN\`, \`GH_TOKEN\`, or \`gh auth token\` is
+  present it is sent as an \`Authorization\` header to \`api.github.com\` and to nothing else,
+  needs no scopes, and is never logged or written to disk. Without one GitHub allows 60
+  checks an hour, which covers a normal slate.
+- If you would rather execute nothing, check each candidate yourself with
+  \`curl -s -o /dev/null -w '%{http_code}' https://api.github.com/repos/OWNER/NAME\` and treat
+  404 as "does not exist". You lose ranking, health flags and the rendered report, but the
+  anti-hallucination check still holds.
 
 It resolves every repository against the GitHub API, drops the ones that do not exist, flags
 archived, unlicensed and abandoned ones, ranks the survivors, and prints a markdown report
