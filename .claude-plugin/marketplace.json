@@ -1,6 +1,9 @@
 {
   "name": "kitbash",
-  "owner": { "name": "Open Dev Society" },
+  "owner": {
+    "name": "Open Dev Society"
+  },
+  "strict": true,
   "plugins": [
     {
       "name": "kitbash",
