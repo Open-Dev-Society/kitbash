@@ -1,12 +1,19 @@
 {
   "name": "kitbash",
+  "version": "0.1.0",
   "description": "Describe what you want to build. Kitbash tells you which parts already exist, which to adapt, and which to just write — and deletes the repos that don't exist.",
-  "author": { "name": "Open Dev Society" },
+  "author": {
+    "name": "Open Dev Society"
+  },
   "homepage": "https://github.com/Open-Dev-Society/kitbash",
   "mcpServers": {
     "kitbash": {
       "command": "npx",
-      "args": ["-y", "github:Open-Dev-Society/kitbash"]
+      "args": [
+        "-y",
+        "github:Open-Dev-Society/kitbash"
+      ]
     }
-  }
+  },
+  "license": "GPL-2.0-only"
 }
